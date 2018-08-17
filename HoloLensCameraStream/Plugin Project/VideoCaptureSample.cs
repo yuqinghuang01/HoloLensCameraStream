@@ -12,6 +12,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Perception.Spatial;
 using Windows.Graphics.Imaging;
 using Windows.Media.Capture.Frames;
+using Windows.Media.Devices.Core;
 
 namespace HoloLensCameraStream
 {
@@ -66,6 +67,11 @@ namespace HoloLensCameraStream
         /// </summary>
         public CapturePixelFormat pixelFormat { get; private set; }
 
+        /// <summary>
+        /// The camera intrinsics
+        /// </summary>
+        public CameraIntrinsics cameraIntrinsics { get; private set; }
+
         //Internal members
 
         internal SpatialCoordinateSystem worldOrigin { get; private set; }
@@ -87,6 +93,7 @@ namespace HoloLensCameraStream
 
             this.frameReference = frameReference;
             this.worldOrigin = worldOrigin;
+            cameraIntrinsics = frameReference.VideoMediaFrame.CameraIntrinsics;
 
             bitmap = frameReference.VideoMediaFrame.SoftwareBitmap;
         }
@@ -145,7 +152,7 @@ namespace HoloLensCameraStream
                 outMatrix = GetIdentityMatrixFloatArray();
                 return false;
             }
-            
+
             Matrix4x4 cameraViewTransform = ConvertByteArrayToMatrix4x4(frameReference.Properties[viewTransformGuid] as byte[]);
             if (cameraViewTransform == null)
             {
@@ -204,7 +211,7 @@ namespace HoloLensCameraStream
             }
 
             Matrix4x4 projectionMatrix = ConvertByteArrayToMatrix4x4(frameReference.Properties[projectionTransformGuid] as byte[]);
-            
+
             // Transpose matrix to match expected Unity format
             projectionMatrix = Matrix4x4.Transpose(projectionMatrix);
             outMatrix = ConvertMatrixToFloatArray(projectionMatrix);
