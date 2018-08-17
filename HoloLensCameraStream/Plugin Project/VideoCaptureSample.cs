@@ -12,7 +12,6 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Perception.Spatial;
 using Windows.Graphics.Imaging;
 using Windows.Media.Capture.Frames;
-using Windows.Media.Devices.Core;
 
 namespace HoloLensCameraStream
 {
@@ -93,7 +92,7 @@ namespace HoloLensCameraStream
 
             this.frameReference = frameReference;
             this.worldOrigin = worldOrigin;
-            cameraIntrinsics = frameReference.VideoMediaFrame.CameraIntrinsics;
+            cameraIntrinsics = new CameraIntrinsics(frameReference.VideoMediaFrame.CameraIntrinsics);
 
             bitmap = frameReference.VideoMediaFrame.SoftwareBitmap;
         }
