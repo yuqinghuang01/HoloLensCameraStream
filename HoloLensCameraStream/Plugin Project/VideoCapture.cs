@@ -352,7 +352,8 @@ namespace HoloLensCameraStream
             {
                 VideoDeviceId = _deviceInfo.Id,
                 SourceGroup = _frameSourceGroup,
-                MemoryPreference = MediaCaptureMemoryPreference.Cpu, //TODO: Should this be the other option, Auto? GPU is not an option.
+                SharingMode = MediaCaptureSharingMode.SharedReadOnly,
+                MemoryPreference = MediaCaptureMemoryPreference.Cpu,
                 StreamingCaptureMode = StreamingCaptureMode.Video
             });
             _mediaCapture.VideoDeviceController.Focus.TrySetAuto(true);
