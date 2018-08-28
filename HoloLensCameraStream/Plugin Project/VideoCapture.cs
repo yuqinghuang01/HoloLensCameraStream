@@ -247,7 +247,7 @@ namespace HoloLensCameraStream
 
             if (_sharedStream)
             {
-                SetFrameType(setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate, setupParams.pixelFormat);
+                SetFrameType(mediaFrameSource, setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate, setupParams.pixelFormat);
             }
 
             var pixelFormat = ConvertCapturePixelFormatToMediaEncodingSubtype(setupParams.pixelFormat);
@@ -375,16 +375,14 @@ namespace HoloLensCameraStream
             _mediaCapture.VideoDeviceController.Focus.TrySetAuto(true);
         }
 
-        private async void SetFrameType(int width, int height, int framerate, CapturePixelFormat pixelFormat)
+        private async void SetFrameType(MediaFrameSource frameSource, int width, int height, int framerate, CapturePixelFormat pixelFormat)
         {
-            var frameSource = _mediaCapture.FrameSources[_frameSourceInfo.Id];
-
             var preferredFormat = frameSource.SupportedFormats.Where(format =>
             {
                 return format.VideoFormat.Width == width
                     && format.VideoFormat.Height == height
-                    && (int)Math.Round(((double)format.FrameRate.Numerator / format.FrameRate.Denominator)) == framerate
-                    && format.Subtype == ConvertCapturePixelFormatToMediaEncodingSubtype(pixelFormat);
+                    && (int)Math.Round(((double)format.FrameRate.Numerator / format.FrameRate.Denominator)) == framerate;
+                    //&& format.Subtype == ConvertCapturePixelFormatToMediaEncodingSubtype(pixelFormat);
             });
 
             if (preferredFormat.Count() == 0) {

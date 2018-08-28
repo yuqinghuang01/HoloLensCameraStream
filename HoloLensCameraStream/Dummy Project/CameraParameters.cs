@@ -19,8 +19,6 @@ namespace HoloLensCameraStream
 
 		public bool rotateImage180Degrees;
 
-        public bool sharedStream;
-
         public float hologramOpacity;
 		public bool enableHolograms
 		{
@@ -40,8 +38,7 @@ namespace HoloLensCameraStream
             int cameraResolutionHeight = 720,
             int cameraResolutionWidth = 1280,
             int frameRate = 30,
-			bool rotateImage180Degrees = true,
-            bool sharedStream=false)
+			bool rotateImage180Degrees = true)
         { throw new NotImplementedException(); }
     }
 }

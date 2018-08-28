@@ -74,8 +74,8 @@ namespace HoloLensCameraStream
             int cameraResolutionHeight = 720,
             int cameraResolutionWidth = 1280,
             int frameRate = 30,
-			bool rotateImage180Degrees = true,
-=        {
+			bool rotateImage180Degrees = true)
+        {
             this.pixelFormat = pixelFormat;
             this.cameraResolutionHeight = cameraResolutionHeight;
             this.cameraResolutionWidth = cameraResolutionWidth;
