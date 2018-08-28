@@ -18,6 +18,10 @@ namespace HoloLensCameraStream
 
         public CameraIntrinsics cameraIntrinsics { get; private set; }
 
+        public int FrameWidth { get; private set; }
+
+        public int FrameHeight { get; private set; }
+
         public void CopyRawImageDataIntoBuffer(byte[] byteBuffer)
         {
             throw new NotImplementedException();

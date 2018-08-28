@@ -123,6 +123,8 @@ namespace HoloLensCameraStream
         static readonly MediaStreamType STREAM_TYPE = MediaStreamType.VideoPreview;
         static readonly Guid ROTATION_KEY = new Guid("C380465D-2271-428C-9B83-ECEA3B4A85C1");
 
+        private bool _sharedStream = false;
+
         MediaFrameSourceGroup _frameSourceGroup;
         MediaFrameSourceInfo _frameSourceInfo;
         DeviceInformation _deviceInfo;
@@ -141,12 +143,12 @@ namespace HoloLensCameraStream
         /// If the instance failed to be created, the instance returned will be null. Also, holograms will not appear in the video.
         /// </summary>
         /// <param name="onCreatedCallback">This callback will be invoked when the VideoCapture instance is created and ready to be used.</param>
-        public static async void CreateAync(OnVideoCaptureResourceCreatedCallback onCreatedCallback)
+        public static async void CreateAync(OnVideoCaptureResourceCreatedCallback onCreatedCallback, bool sharedStream = false)
         {
             var allFrameSourceGroups = await MediaFrameSourceGroup.FindAllAsync();                                              //Returns IReadOnlyList<MediaFrameSourceGroup>
-            var candidateFrameSourceGroups = allFrameSourceGroups.Where(group => group.SourceInfos.Any(IsColorVideo));   //Returns IEnumerable<MediaFrameSourceGroup>
+            var candidateFrameSourceGroups = allFrameSourceGroups.Where(group => group.SourceInfos.Any(IsColorVideo));          //Returns IEnumerable<MediaFrameSourceGroup>
             var selectedFrameSourceGroup = candidateFrameSourceGroups.FirstOrDefault();                                         //Returns a single MediaFrameSourceGroup
-            
+
             if (selectedFrameSourceGroup == null)
             {
                 onCreatedCallback?.Invoke(null);
@@ -154,7 +156,8 @@ namespace HoloLensCameraStream
             }
 
             var selectedFrameSourceInfo = selectedFrameSourceGroup.SourceInfos.FirstOrDefault(); //Returns a MediaFrameSourceInfo
-            
+
+
             if (selectedFrameSourceInfo == null)
             {
                 onCreatedCallback?.Invoke(null);
@@ -171,6 +174,7 @@ namespace HoloLensCameraStream
             }
 
             var videoCapture = new VideoCapture(selectedFrameSourceGroup, selectedFrameSourceInfo, deviceInformation);
+            videoCapture._sharedStream = sharedStream;
             await videoCapture.CreateMediaCaptureAsync();
             onCreatedCallback?.Invoke(videoCapture);
         }
@@ -241,6 +245,11 @@ namespace HoloLensCameraStream
                 return;
             }
 
+            if (_sharedStream)
+            {
+                SetFrameType(setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate, setupParams.pixelFormat);
+            }
+
             var pixelFormat = ConvertCapturePixelFormatToMediaEncodingSubtype(setupParams.pixelFormat);
             _frameReader = await _mediaCapture.CreateFrameReaderAsync(mediaFrameSource, pixelFormat);
             _frameReader.FrameArrived += HandleFrameArrived;
@@ -248,7 +257,7 @@ namespace HoloLensCameraStream
             VideoEncodingProperties properties = GetVideoEncodingPropertiesForCameraParams(setupParams);
 
             // Historical context: https://github.com/VulcanTechnologies/HoloLensCameraStream/issues/6
-            if (setupParams.rotateImage180Degrees)
+            if (!_sharedStream && setupParams.rotateImage180Degrees)
             {
                 properties.Properties.Add(ROTATION_KEY, 180);
             }
@@ -256,8 +265,12 @@ namespace HoloLensCameraStream
 			//	gr: taken from here https://forums.hololens.com/discussion/2009/mixedrealitycapture
 			IVideoEffectDefinition ved = new VideoMRCSettings( setupParams.enableHolograms, setupParams.enableVideoStabilization, setupParams.videoStabilizationBufferSize, setupParams.hologramOpacity );
 			await _mediaCapture.AddVideoEffectAsync(ved, MediaStreamType.VideoPreview);
-        
-            await _mediaCapture.VideoDeviceController.SetMediaStreamPropertiesAsync(STREAM_TYPE, properties);
+
+            if (!_sharedStream)
+            {
+                // We can't modify the stream properties if we are sharing the stream
+                await _mediaCapture.VideoDeviceController.SetMediaStreamPropertiesAsync(STREAM_TYPE, properties);
+            }
 
             onVideoModeStartedCallback?.Invoke(new VideoCaptureResult(0, ResultType.Success, true));
         }
@@ -347,17 +360,40 @@ namespace HoloLensCameraStream
                 throw new Exception("The MediaCapture object has already been created.");
             }
 
+            //GetVideoProfileAsync(_deviceInfo.Id);
+
             _mediaCapture = new MediaCapture();
             await _mediaCapture.InitializeAsync(new MediaCaptureInitializationSettings()
             {
                 VideoDeviceId = _deviceInfo.Id,
                 SourceGroup = _frameSourceGroup,
-                SharingMode = MediaCaptureSharingMode.SharedReadOnly,
+                SharingMode = _sharedStream ? MediaCaptureSharingMode.SharedReadOnly : MediaCaptureSharingMode.ExclusiveControl,
                 MemoryPreference = MediaCaptureMemoryPreference.Cpu,
-                StreamingCaptureMode = StreamingCaptureMode.Video
+                StreamingCaptureMode = StreamingCaptureMode.Video,
             });
+
             _mediaCapture.VideoDeviceController.Focus.TrySetAuto(true);
         }
+
+        private async void SetFrameType(int width, int height, int framerate, CapturePixelFormat pixelFormat)
+        {
+            var frameSource = _mediaCapture.FrameSources[_frameSourceInfo.Id];
+
+            var preferredFormat = frameSource.SupportedFormats.Where(format =>
+            {
+                return format.VideoFormat.Width == width
+                    && format.VideoFormat.Height == height
+                    && (int)Math.Round(((double)format.FrameRate.Numerator / format.FrameRate.Denominator)) == framerate
+                    && format.Subtype == ConvertCapturePixelFormatToMediaEncodingSubtype(pixelFormat);
+            });
+
+            if (preferredFormat.Count() == 0) {
+                throw new ArgumentException(String.Format("No frame type exists for {0}x{1}@{2} {3}", width, height, framerate, pixelFormat));
+            }
+
+            await frameSource.SetFormatAsync(preferredFormat.First());
+        }
+
 
         void HandleFrameArrived(MediaFrameReader sender, MediaFrameArrivedEventArgs args)
         {

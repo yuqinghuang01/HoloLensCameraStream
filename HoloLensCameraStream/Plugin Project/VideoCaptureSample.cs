@@ -71,6 +71,9 @@ namespace HoloLensCameraStream
         /// </summary>
         public CameraIntrinsics cameraIntrinsics { get; private set; }
 
+        public int FrameWidth { get; private set; }
+        public int FrameHeight { get; private set; }
+
         //Internal members
 
         internal SpatialCoordinateSystem worldOrigin { get; private set; }
@@ -95,6 +98,8 @@ namespace HoloLensCameraStream
             cameraIntrinsics = new CameraIntrinsics(frameReference.VideoMediaFrame.CameraIntrinsics);
 
             bitmap = frameReference.VideoMediaFrame.SoftwareBitmap;
+            FrameWidth = bitmap.PixelWidth;
+            FrameHeight = bitmap.PixelHeight;
         }
 
         /// <summary>
