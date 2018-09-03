@@ -120,7 +120,7 @@ namespace HoloLensCameraStream
             }
         }
 
-        static readonly MediaStreamType STREAM_TYPE = MediaStreamType.VideoPreview;
+        static readonly MediaStreamType STREAM_TYPE = MediaStreamType.VideoRecord;
         static readonly Guid ROTATION_KEY = new Guid("C380465D-2271-428C-9B83-ECEA3B4A85C1");
 
         private bool _sharedStream = false;
@@ -247,23 +247,24 @@ namespace HoloLensCameraStream
 
             if (_sharedStream)
             {
-                await SetFrameType(mediaFrameSource, setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate);
+                bool requires_change =
+                    mediaFrameSource.CurrentFormat.VideoFormat.Width != setupParams.cameraResolutionWidth
+                    || mediaFrameSource.CurrentFormat.VideoFormat.Height != setupParams.cameraResolutionHeight
+                    || (int)Math.Round(((double)mediaFrameSource.CurrentFormat.FrameRate.Numerator / mediaFrameSource.CurrentFormat.FrameRate.Denominator)) != setupParams.frameRate;
+                if (requires_change)
+                {
+                    await SetFrameType(mediaFrameSource, setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate);
+                }
             }
 
-            var pixelFormat = ConvertCapturePixelFormatToMediaEncodingSubtype(setupParams.pixelFormat);
-            _frameReader = await _mediaCapture.CreateFrameReaderAsync(mediaFrameSource, pixelFormat);
-            _frameReader.FrameArrived += HandleFrameArrived;
-            await _frameReader.StartAsync();
-
-            VideoEncodingProperties properties = GetVideoEncodingPropertiesForCameraParams(setupParams);
-
-			
 			//	gr: taken from here https://forums.hololens.com/discussion/2009/mixedrealitycapture
-			IVideoEffectDefinition ved = new VideoMRCSettings( setupParams.enableHolograms, setupParams.enableVideoStabilization, setupParams.videoStabilizationBufferSize, setupParams.hologramOpacity );
-			await _mediaCapture.AddVideoEffectAsync(ved, MediaStreamType.VideoPreview);
+			IVideoEffectDefinition ved = new VideoMRCSettings( setupParams.enableHolograms, setupParams.enableVideoStabilization, setupParams.videoStabilizationBufferSize, setupParams.hologramOpacity, setupParams.recordingIndicatorVisible );
+			await _mediaCapture.AddVideoEffectAsync(ved, STREAM_TYPE);
 
             if (!_sharedStream)
             {
+                VideoEncodingProperties properties = GetVideoEncodingPropertiesForCameraParams(setupParams);
+
                 // Historical context: https://github.com/VulcanTechnologies/HoloLensCameraStream/issues/6
 
                 if (setupParams.rotateImage180Degrees)
@@ -273,6 +274,11 @@ namespace HoloLensCameraStream
                 // We can't modify the stream properties if we are sharing the stream
                 await _mediaCapture.VideoDeviceController.SetMediaStreamPropertiesAsync(STREAM_TYPE, properties);
             }
+           
+            var pixelFormat = ConvertCapturePixelFormatToMediaEncodingSubtype(setupParams.pixelFormat);
+            _frameReader = await _mediaCapture.CreateFrameReaderAsync(mediaFrameSource, pixelFormat);
+            _frameReader.FrameArrived += HandleFrameArrived;
+            await _frameReader.StartAsync();
 
             onVideoModeStartedCallback?.Invoke(new VideoCaptureResult(0, ResultType.Success, true));
         }
@@ -477,13 +483,14 @@ namespace HoloLensCameraStream
             get; private set;
         }
         
-        public VideoMRCSettings(bool HologramCompositionEnabled, bool VideoStabilizationEnabled, int VideoStabilizationBufferLength, float GlobalOpacityCoefficient)
+        public VideoMRCSettings(bool HologramCompositionEnabled, bool VideoStabilizationEnabled, int VideoStabilizationBufferLength, float GlobalOpacityCoefficient, bool RecordingIndicatorEnabled)
         {
             Properties = (IPropertySet)new PropertySet();
             Properties.Add("HologramCompositionEnabled", HologramCompositionEnabled);
             Properties.Add("VideoStabilizationEnabled", VideoStabilizationEnabled);
             Properties.Add("VideoStabilizationBufferLength", VideoStabilizationBufferLength);
             Properties.Add("GlobalOpacityCoefficient", GlobalOpacityCoefficient);
+            Properties.Add("RecordingIndicatorEnabled", RecordingIndicatorEnabled);
         }
     }
 }
