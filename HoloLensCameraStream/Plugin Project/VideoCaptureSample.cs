@@ -56,10 +56,10 @@ namespace HoloLensCameraStream
         static Guid cameraCoordinateSystemGuid = new Guid("9D13C82F-2199-4E67-91CD-D1A4181F2534");
 
         /// <summary>
-        /// The guid for getting the camera intrinsics for the frame sample (https://www.magnumdb.com)
-        /// See https://developer.microsoft.com/en-us/windows/mixed-reality/locatable_camera#locating_the_device_camera_in_the_world
+        /// The guid for getting the camera intrinsics for the frame sample (see https://www.magnumdb.com)
         /// </summary>
         static Guid cameraIntrinsicsGuid = new Guid("4EE3B6C5-6A15-4E72-9761-70C1DB8B9FE3");
+
 
         /// <summary>
         /// How many bytes are in the frame.

@@ -20,7 +20,6 @@ using Windows.Foundation;
 using System.Diagnostics;
 
 
-
 namespace HoloLensCameraStream
 {
     /// <summary>
@@ -116,7 +115,31 @@ namespace HoloLensCameraStream
         {
             set
             {
-                worldOrigin = (SpatialCoordinateSystem)Marshal.GetObjectForIUnknown(value);
+                //worldOrigin = Marshal.PtrToStructure<SpatialCoordinateSystem>(value);
+
+                if (value == null)
+                {
+                    throw new ArgumentException("World origin pointer is null");
+                }
+                
+                var obj = Marshal.GetObjectForIUnknown(value);
+                var scs = obj as SpatialCoordinateSystem;
+                worldOrigin = scs ?? throw new InvalidCastException("Failed to set SpatialCoordinateSystem from IntPtr");
+            }
+        }
+
+        /// <summary>
+        /// Allow direct setting of the spatial coordinate system due to unity bug in NET Native builds
+        /// https://issuetracker.unity3d.com/issues/uwp-compile-net-native-for-hololens-causes-spatialcoordinatesystem-marshal-dot-getobjectforiunknown-exception
+        /// To use this, cache the coordinate system on scene load with 
+        /// SpatialCoordinateSystem camStreamCS = Windows.Perception.Spatial.SpatialLocator.GetDefault().CreateStationaryFrameOfReferenceAtCurrentLocation().CoordinateSystem
+        /// Then inject when you create the videocapture.
+        /// </summary>
+        public SpatialCoordinateSystem WorldOrigin
+        {
+            set
+            {
+                worldOrigin = value;
             }
         }
 
