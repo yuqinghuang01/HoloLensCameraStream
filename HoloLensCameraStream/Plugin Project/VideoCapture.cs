@@ -268,16 +268,13 @@ namespace HoloLensCameraStream
                 return;
             }
 
-            if (_sharedStream)
+            bool requires_change =
+                mediaFrameSource.CurrentFormat.VideoFormat.Width != setupParams.cameraResolutionWidth
+                || mediaFrameSource.CurrentFormat.VideoFormat.Height != setupParams.cameraResolutionHeight
+                || (int)Math.Round(((double)mediaFrameSource.CurrentFormat.FrameRate.Numerator / mediaFrameSource.CurrentFormat.FrameRate.Denominator)) != setupParams.frameRate;
+            if (requires_change)
             {
-                bool requires_change =
-                    mediaFrameSource.CurrentFormat.VideoFormat.Width != setupParams.cameraResolutionWidth
-                    || mediaFrameSource.CurrentFormat.VideoFormat.Height != setupParams.cameraResolutionHeight
-                    || (int)Math.Round(((double)mediaFrameSource.CurrentFormat.FrameRate.Numerator / mediaFrameSource.CurrentFormat.FrameRate.Denominator)) != setupParams.frameRate;
-                if (requires_change)
-                {
-                    await SetFrameType(mediaFrameSource, setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate);
-                }
+                await SetFrameType(mediaFrameSource, setupParams.cameraResolutionWidth, setupParams.cameraResolutionHeight, setupParams.frameRate);
             }
 
 			//	gr: taken from here https://forums.hololens.com/discussion/2009/mixedrealitycapture
