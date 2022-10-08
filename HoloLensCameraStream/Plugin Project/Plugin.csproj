@@ -107,6 +107,7 @@
     <Compile Include="CameraIntrinsics.cs" />
     <Compile Include="CapturePixelFormat.cs" />
     <Compile Include="CameraParameters.cs" />
+    <Compile Include="HololensDeviceType.cs" />
     <Compile Include="ResultType.cs" />
     <Compile Include="VideoCaptureResult.cs" />
     <Compile Include="Resolution.cs" />
