@@ -17,18 +17,18 @@ namespace HoloLensCameraStream
 
         public int frameRate;
 
-		public bool rotateImage180Degrees;
+        public bool rotateImage180Degrees;
 
         public float hologramOpacity;
-		public bool enableHolograms
-		{
-			get {	throw new NotImplementedException(); }
-			set {	throw new NotImplementedException(); }
-		}
+        public bool enableHolograms
+        {
+            get {	throw new NotImplementedException(); }
+            set {	throw new NotImplementedException(); }
+        }
 
- 		public int videoStabilizationBufferSize;
-		public bool enableVideoStabilization
-		{
+        public int videoStabilizationBufferSize;
+        public bool enableVideoStabilization
+        {
             get { throw new NotImplementedException(); }
             set { throw new NotImplementedException(); }
         }
@@ -40,7 +40,7 @@ namespace HoloLensCameraStream
             int cameraResolutionHeight = 720,
             int cameraResolutionWidth = 1280,
             int frameRate = 30,
-			bool rotateImage180Degrees = true,
+            bool rotateImage180Degrees = true,
             bool recordingIndicatorVisible=true)
         { throw new NotImplementedException(); }
     }

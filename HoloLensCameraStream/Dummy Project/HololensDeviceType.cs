@@ -5,9 +5,6 @@
 
 namespace HoloLensCameraStream
 {
-    /// <summary>
-    /// Represents the type of Hololens device.
-    /// </summary>
     public enum HololensDeviceType
     {
         Unknown,

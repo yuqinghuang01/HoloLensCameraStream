@@ -16,7 +16,7 @@ namespace HoloLensCameraStream
 
         public CapturePixelFormat pixelFormat { get; private set; }
 
-        public CameraIntrinsics cameraIntrinsics { get; private set; }
+        public CameraIntrinsics cameraIntrinsics { get; }
 
         public int FrameWidth { get; private set; }
 

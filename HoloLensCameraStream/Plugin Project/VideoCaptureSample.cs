@@ -1,4 +1,4 @@
-﻿//  
+//  
 // Copyright (c) 2017 Vulcan, Inc. All rights reserved.  
 // Licensed under the Apache 2.0 license. See LICENSE file in the project root for full license information.
 //
@@ -13,54 +13,10 @@ using Windows.Perception.Spatial;
 using Windows.Graphics.Imaging;
 using Windows.Media.Capture.Frames;
 
-
-/* Available GUIDS from the acquired frame (refer https://www.magnumdb.com)
- * ?                                                    {C9BA19A9-0F8A-432F-AEDE-BA44D7F38AB7}:System.Byte[]
- * MFSampleExtension_Interlaced                         {B1D5830A-DEB8-40E3-90FA-389943716461}:1
- * MFSampleExtension_BottomFieldFirst                   {941CE0A3-6AE3-4DDA-9A08-A64298340617}:1
- * ?                                                    {1D120EF0-CFC4-4E49-B64C-DDC371776022}:System.Byte[]
- * MFSampleExtension_Spatial_CameraCoordinateSystem     {9D13C82F-2199-4E67-91CD-D1A4181F2534}:Windows.Perception.Spatial.SpatialCoordinateSystem
- * ?                                                    {0B404D45-3042-4F52-9BA5-B1DAB2D02508}:25586972113
- * MFSampleExtension_CameraExtrinsics                   {6B761658-B7EC-4C3B-8225-8623CABEC31D}:System.Byte[]
- * MFSampleExtension_CleanPoint                         {9CDF01D8-A0F0-43BA-B077-EAA06CBD728A}:1
- * MFSampleExtension_DeviceReferenceSystemTime          {6523775A-BA2D-405F-B2C5-01FF88E2E8F6}:251941698121
- * MFSampleExtension_Spatial_CameraViewTransform        {4E251FA4-830F-4770-859A-4B8D99AA809B}:System.Byte[]
- * MFSampleExtension_PinholeCameraIntrinsics            {4EE3B6C5-6A15-4E72-9761-70C1DB8B9FE3}:System.Byte[]
- * MFSampleExtension_Spatial_CameraProjectionTransform  {47F9FCB5-2A02-4F26-A477-792FDF95886A}:System.Byte[]
- * ?                                                    {66A3D7D5-F91B-42BB-AE55-B4DB6F98FCD6}:System.Byte[]
- * ?                                                    {137E6B95-4CAD-4CB9-9B7F-65CEF2068A41}:0
- * ?                                                    {C4139297-2CEC-47C6-9CDF-6DB62EE6DF72}:2
- * ?                                                    {429F001F-BC30-4BAC-AF7F-91C024D1D974}:System.Byte[]
- */
-
 namespace HoloLensCameraStream
 {
     public class VideoCaptureSample
     {
-        /// <summary>
-        /// The guid for getting the view transform from the frame sample.
-        /// See https://developer.microsoft.com/en-us/windows/mixed-reality/locatable_camera#locating_the_device_camera_in_the_world
-        /// </summary>
-        static Guid viewTransformGuid = new Guid("4E251FA4-830F-4770-859A-4B8D99AA809B");
-
-        /// <summary>
-        /// The guid for getting the projection transform from the frame sample.
-        /// See https://developer.microsoft.com/en-us/windows/mixed-reality/locatable_camera#locating_the_device_camera_in_the_world
-        /// </summary>
-        static Guid projectionTransformGuid = new Guid("47F9FCB5-2A02-4F26-A477-792FDF95886A");
-
-        /// <summary>
-        /// The guid for getting the camera coordinate system for the frame sample.
-        /// See https://developer.microsoft.com/en-us/windows/mixed-reality/locatable_camera#locating_the_device_camera_in_the_world
-        /// </summary>
-        static Guid cameraCoordinateSystemGuid = new Guid("9D13C82F-2199-4E67-91CD-D1A4181F2534");
-
-        /// <summary>
-        /// The guid for getting the camera intrinsics for the frame sample (see https://www.magnumdb.com)
-        /// </summary>
-        static Guid cameraIntrinsicsGuid = new Guid("4EE3B6C5-6A15-4E72-9761-70C1DB8B9FE3");
-
-
         /// <summary>
         /// How many bytes are in the frame.
         /// There are four bytes per pixel, times the width and height of the bitmap.
@@ -69,7 +25,15 @@ namespace HoloLensCameraStream
         {
             get
             {
-                return 4 * bitmap.PixelHeight * bitmap.PixelWidth;
+                switch (pixelFormat)
+                {
+                    case CapturePixelFormat.BGRA32:
+                        return FrameWidth * FrameHeight * 4;
+                    case CapturePixelFormat.NV12:
+                        return (FrameWidth * FrameHeight * 6) / 4;
+                    default:
+                        return -1;
+                }
             }
         }
 
@@ -95,7 +59,19 @@ namespace HoloLensCameraStream
         /// <summary>
         /// The camera intrinsics
         /// </summary>
-        public CameraIntrinsics cameraIntrinsics { get; private set; }
+        public CameraIntrinsics cameraIntrinsics
+        {
+            get
+            {
+                Windows.Media.Devices.Core.CameraIntrinsics mediaFrameIntrinsics = frameReference.VideoMediaFrame.CameraIntrinsics;
+                if (mediaFrameIntrinsics == null)
+                {
+                    return null;
+                }
+
+                return new CameraIntrinsics(mediaFrameIntrinsics);
+            }
+        }
 
         public int FrameWidth { get; private set; }
         public int FrameHeight { get; private set; }
@@ -122,16 +98,25 @@ namespace HoloLensCameraStream
             this.frameReference = frameReference;
             this.worldOrigin = worldOrigin;
 
-            // When Windows.Media.Devices.Core.CameraIntrinsics is out of prerelease, use this instead
-            //cameraIntrinsics = new CameraIntrinsics(frameReference.VideoMediaFrame.CameraIntrinsics);
-
-            byte[] rawIntrinsics = frameReference.Properties[cameraIntrinsicsGuid] as byte[];
-            float[] intrinsicArray = ConvertByteArrayToFloatArray(rawIntrinsics);
-            cameraIntrinsics = new CameraIntrinsics(intrinsicArray);
-
             bitmap = frameReference.VideoMediaFrame.SoftwareBitmap;
+            pixelFormat = ConvertBitmapPixelFormatToCapturePixelFormat(bitmap.BitmapPixelFormat);
             FrameWidth = bitmap.PixelWidth;
             FrameHeight = bitmap.PixelHeight;
+
+            // from https://github.com/qian256/HoloLensARToolKit/blob/bef36a89f191ab7d389d977c46639376069bbed6/HoloLensARToolKit/Assets/ARToolKitUWP/Scripts/ARUWPVideo.cs#L372
+            if (pixelFormat == CapturePixelFormat.NV12)
+            {
+                if (FrameWidth == 500 || FrameWidth == 760 || FrameWidth == 1128 || FrameWidth == 1504 || FrameWidth == 1952)
+                {
+                    // if bitmap.PixelWidth is not aligned with 64, then pad to 64
+                    // on HoloLens 2, it is a must
+                    if (FrameWidth % 64 != 0)
+                    {
+                        int paddedFrameWidth = ((FrameWidth >> 6) + 1) << 6;
+                        FrameWidth = paddedFrameWidth;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -177,26 +162,14 @@ namespace HoloLensCameraStream
         /// See https://forum.unity3d.com/threads/locatable-camera-in-unity.398803/ for details.</param>
         public bool TryGetCameraToWorldMatrix(out float[] outMatrix)
         {
-            if (frameReference.Properties.ContainsKey(viewTransformGuid) == false)
-            {
-                outMatrix = GetIdentityMatrixFloatArray();
-                return false;
-            }
-
+            // from https://github.com/qian256/HoloLensARToolKit/blob/bef36a89f191ab7d389d977c46639376069bbed6/HoloLensARToolKit/Assets/ARToolKitUWP/Scripts/ARUWPVideo.cs#L603
             if (worldOrigin == null)
             {
                 outMatrix = GetIdentityMatrixFloatArray();
                 return false;
             }
 
-            Matrix4x4 cameraViewTransform = ConvertByteArrayToMatrix4x4(frameReference.Properties[viewTransformGuid] as byte[]);
-            if (cameraViewTransform == null)
-            {
-                outMatrix = GetIdentityMatrixFloatArray();
-                return false;
-            }
-
-            SpatialCoordinateSystem cameraCoordinateSystem = frameReference.Properties[cameraCoordinateSystemGuid] as SpatialCoordinateSystem;
+            SpatialCoordinateSystem cameraCoordinateSystem = frameReference.CoordinateSystem;
             if (cameraCoordinateSystem == null)
             {
                 outMatrix = GetIdentityMatrixFloatArray();
@@ -210,21 +183,15 @@ namespace HoloLensCameraStream
                 return false;
             }
 
-            // Transpose the matrices to obtain a proper transform matrix
-            cameraViewTransform = Matrix4x4.Transpose(cameraViewTransform);
             Matrix4x4 cameraCoordsToUnityCoords = Matrix4x4.Transpose(cameraCoordsToUnityCoordsMatrix.Value);
 
-            Matrix4x4 viewToWorldInCameraCoordsMatrix;
-            Matrix4x4.Invert(cameraViewTransform, out viewToWorldInCameraCoordsMatrix);
-            Matrix4x4 viewToWorldInUnityCoordsMatrix = Matrix4x4.Multiply(cameraCoordsToUnityCoords, viewToWorldInCameraCoordsMatrix);
-
             // Change from right handed coordinate system to left handed UnityEngine
-            viewToWorldInUnityCoordsMatrix.M31 *= -1f;
-            viewToWorldInUnityCoordsMatrix.M32 *= -1f;
-            viewToWorldInUnityCoordsMatrix.M33 *= -1f;
-            viewToWorldInUnityCoordsMatrix.M34 *= -1f;
+            cameraCoordsToUnityCoords.M31 *= -1f;
+            cameraCoordsToUnityCoords.M32 *= -1f;
+            cameraCoordsToUnityCoords.M33 *= -1f;
+            cameraCoordsToUnityCoords.M34 *= -1f;
 
-            outMatrix = ConvertMatrixToFloatArray(viewToWorldInUnityCoordsMatrix);
+            outMatrix = ConvertMatrixToFloatArray(cameraCoordsToUnityCoords);
 
             return true;
         }
@@ -240,17 +207,20 @@ namespace HoloLensCameraStream
         /// See https://forum.unity3d.com/threads/locatable-camera-in-unity.398803/ for details.</param>
         public bool TryGetProjectionMatrix(out float[] outMatrix)
         {
-            if (frameReference.Properties.ContainsKey(projectionTransformGuid) == false)
+            CameraIntrinsics cameraIntrinsics = this.cameraIntrinsics;
+            if (cameraIntrinsics == null)
             {
                 outMatrix = GetIdentityMatrixFloatArray();
                 return false;
             }
 
-            Matrix4x4 projectionMatrix = ConvertByteArrayToMatrix4x4(frameReference.Properties[projectionTransformGuid] as byte[]);
+            Matrix4x4 projectionMatrix = ConvertCameraIntrinsicsToProjectionMatrix(cameraIntrinsics, 0.1f, 1000f);
 
             // Transpose matrix to match expected Unity format
             projectionMatrix = Matrix4x4.Transpose(projectionMatrix);
+
             outMatrix = ConvertMatrixToFloatArray(projectionMatrix);
+
             return true;
         }
 
@@ -273,6 +243,21 @@ namespace HoloLensCameraStream
             frameReference.Dispose();
         }
 
+        // from https://strawlab.org/2011/11/05/augmented-reality-with-OpenGL/
+        private Matrix4x4 ConvertCameraIntrinsicsToProjectionMatrix(CameraIntrinsics cameraIntrinsics, float near, float far)
+        {
+            Matrix4x4 projectionMatrix = new Matrix4x4();
+            projectionMatrix.M11 = 2.0f * cameraIntrinsics.FocalLengthX / cameraIntrinsics.ImageWidth;
+            projectionMatrix.M31 = 1.0f - 2.0f * cameraIntrinsics.PrincipalPointX / cameraIntrinsics.ImageWidth;
+            projectionMatrix.M22 = 2.0f * cameraIntrinsics.FocalLengthY / cameraIntrinsics.ImageHeight;
+            projectionMatrix.M32 = -1.0f + 2.0f * cameraIntrinsics.PrincipalPointY / cameraIntrinsics.ImageHeight;
+            projectionMatrix.M33 = -(far + near) / (far - near);
+            projectionMatrix.M43 = -2.0f * far * near / (far - near);
+            projectionMatrix.M34 = -1.0f;
+
+            return projectionMatrix;
+        }
+
         private float[] ConvertMatrixToFloatArray(Matrix4x4 matrix)
         {
             return new float[16] {
@@ -284,13 +269,13 @@ namespace HoloLensCameraStream
 
         private float[] ConvertByteArrayToFloatArray(byte[] values)
         {
-            if (values.Length < 4 || values.Length%4 != 0)
+            if (values.Length < 4 || values.Length % 4 != 0)
             {
                 throw new ArgumentException("Expected byte array to at least 4 bytes and divisible by 4. Array was " + values.Length + " bytes");
             }
 
             float[] outputArr = new float[values.Length / 4];
-            for (int i=0;i<outputArr.Length;i++)
+            for (int i = 0; i < outputArr.Length; i++)
             {
                 outputArr[i] = BitConverter.ToSingle(values, i * 4);
             }

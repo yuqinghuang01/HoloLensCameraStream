@@ -135,11 +135,12 @@ namespace HoloLensCameraStream
         /// SpatialCoordinateSystem camStreamCS = Windows.Perception.Spatial.SpatialLocator.GetDefault().CreateStationaryFrameOfReferenceAtCurrentLocation().CoordinateSystem
         /// Then inject when you create the videocapture.
         /// </summary>
-        public SpatialCoordinateSystem WorldOrigin
+        public object WorldOrigin
         {
             set
             {
-                worldOrigin = value;
+                var scs = value as SpatialCoordinateSystem;
+                worldOrigin = scs ?? throw new InvalidCastException("Failed to set SpatialCoordinateSystem from object");
             }
         }
 
