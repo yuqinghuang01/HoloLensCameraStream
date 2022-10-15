@@ -1,9 +1,14 @@
-﻿using System.Collections;
+//  
+// Copyright (c) 2017 Vulcan, Inc. All rights reserved.  
+// Licensed under the Apache 2.0 license. See LICENSE file in the project root for full license information.
+//
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class RaycastLaser : MonoBehaviour {
-
+public class RaycastLaser : MonoBehaviour
+{
     public float _lineWidthMultiplier = 0.05f;
     public Material _laserMaterial;
 
@@ -14,9 +19,10 @@ public class RaycastLaser : MonoBehaviour {
     }
     */
 
-    public void shootLaserFrom(Vector3 from, Vector3 direction, float length, Material mat=null)
+    public void shootLaserFrom(Vector3 from, Vector3 direction, float length, Material mat = null)
     {
         LineRenderer lr = new GameObject().AddComponent<LineRenderer>();
+        lr.transform.parent = transform;
         lr.widthMultiplier = _lineWidthMultiplier;
 
         // Set Material

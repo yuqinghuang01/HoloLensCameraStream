@@ -1,4 +1,4 @@
-﻿//  
+//  
 // Copyright (c) 2017 Vulcan, Inc. All rights reserved.  
 // Licensed under the Apache 2.0 license. See LICENSE file in the project root for full license information.
 //
@@ -12,6 +12,8 @@ public class VideoPanel : MonoBehaviour
 
     public void SetResolution(int width, int height)
     {
+        transform.localScale = new Vector3(0.4f, 0.4f * height / width);
+
         var texture = new Texture2D(width, height, TextureFormat.BGRA32, false);
         rawImage.texture = texture;
     }

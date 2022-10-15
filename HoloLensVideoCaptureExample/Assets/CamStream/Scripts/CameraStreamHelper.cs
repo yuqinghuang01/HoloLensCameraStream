@@ -1,4 +1,4 @@
-﻿//  
+//  
 // Copyright (c) 2017 Vulcan, Inc. All rights reserved.  
 // Licensed under the Apache 2.0 license. See LICENSE file in the project root for full license information.
 //
@@ -26,6 +26,11 @@ public class CameraStreamHelper : MonoBehaviour
     public void SetNativeISpatialCoordinateSystemPtr(IntPtr ptr)
     {
         videoCapture.WorldOriginPtr = ptr;
+    }
+
+    public void SetNativeISpatialCoordinateSystem(object worldOrigin)
+    {
+        videoCapture.WorldOrigin = worldOrigin;
     }
 
     public void GetVideoCaptureAsync(OnVideoCaptureResourceCreatedCallback onVideoCaptureAvailable)

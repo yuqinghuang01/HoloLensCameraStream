@@ -1,19 +1,26 @@
-﻿//  
+//  
 // Copyright (c) 2017 Vulcan, Inc. All rights reserved.  
 // Licensed under the Apache 2.0 license. See LICENSE file in the project root for full license information.
 //
 
 using UnityEngine;
-using UnityEngine.VR.WSA;
-
 using System;
-
 using HoloLensCameraStream;
 using System.Collections.Generic;
 
+#if WINDOWS_UWP && XR_PLUGIN_OPENXR
+using Windows.Perception.Spatial;
+#endif
+
 /// <summary>
 /// This example gets the video frames at 30 fps and displays them on a Unity texture,
-/// which is locked the User's gaze.
+/// and displayed the debug information in front.
+/// 
+/// **Add Define Symbols:**
+/// Open **File > Build Settings > Player Settings > Other Settings** and add the following to `Scripting Define Symbols` depending on the XR system used in your project;
+/// - Legacy built-in XR: `BUILTIN_XR`';
+/// - XR Plugin Management (Windows Mixed Reality): `XR_PLUGIN_WINDOWSMR`;
+/// - XR Plugin Management (OpenXR):`XR_PLUGIN_OPENXR`.
 /// </summary>
 public class VideoPanelApp : MonoBehaviour
 {
@@ -23,16 +30,42 @@ public class VideoPanelApp : MonoBehaviour
     //"Injected" objects.
     VideoPanel _videoPanelUI;
     VideoCapture _videoCapture;
+    public TextMesh _displayText;
 
     IntPtr _spatialCoordinateSystemPtr;
+
+#if WINDOWS_UWP && XR_PLUGIN_OPENXR
+    SpatialCoordinateSystem _spatialCoordinateSystem;
+#endif
 
     Queue<Action> _mainThreadActions;
 
     void Start()
     {
         _mainThreadActions = new Queue<Action>();
+
         //Fetch a pointer to Unity's spatial coordinate system if you need pixel mapping
-        _spatialCoordinateSystemPtr = WorldManager.GetNativeISpatialCoordinateSystemPtr();
+#if WINDOWS_UWP
+
+#if XR_PLUGIN_WINDOWSMR
+
+        _spatialCoordinateSystemPtr = UnityEngine.XR.WindowsMR.WindowsMREnvironment.OriginSpatialCoordinateSystem;
+
+#elif XR_PLUGIN_OPENXR
+
+        _spatialCoordinateSystem = Microsoft.MixedReality.OpenXR.PerceptionInterop.GetSceneCoordinateSystem(UnityEngine.Pose.identity) as SpatialCoordinateSystem;
+
+#elif BUILTIN_XR
+
+#if UNITY_2017_2_OR_NEWER
+        _spatialCoordinateSystemPtr = UnityEngine.XR.WSA.WorldManager.GetNativeISpatialCoordinateSystemPtr();
+#else
+        _spatialCoordinateSystemPtr = UnityEngine.VR.WSA.WorldManager.GetNativeISpatialCoordinateSystemPtr();
+#endif
+
+#endif
+
+#endif
 
         //Call this in Start() to ensure that the CameraStreamHelper is already "Awake".
         CameraStreamHelper.Instance.GetVideoCaptureAsync(OnVideoCaptureCreated);
@@ -40,6 +73,7 @@ public class VideoPanelApp : MonoBehaviour
         //CameraStreamManager.Instance.GetVideoCaptureAsync(v => videoCapture = v);
 
         _videoPanelUI = GameObject.FindObjectOfType<VideoPanel>();
+        _videoPanelUI.rawImage.transform.localScale = new Vector3(1, -1, 1);
     }
 
     private void Update()
@@ -75,13 +109,22 @@ public class VideoPanelApp : MonoBehaviour
         if (videoCapture == null)
         {
             Debug.LogError("Did not find a video capture object. You may not be using the HoloLens.");
+            Enqueue(() => SetText("Did not find a video capture object. You may not be using the HoloLens."));
             return;
         }
-        
+
         this._videoCapture = videoCapture;
 
         //Request the spatial coordinate ptr if you want fetch the camera and set it if you need to 
+#if WINDOWS_UWP
+
+#if XR_PLUGIN_OPENXR
+        CameraStreamHelper.Instance.SetNativeISpatialCoordinateSystem(_spatialCoordinateSystem);
+#elif XR_PLUGIN_WINDOWSMR || BUILTIN_XR
         CameraStreamHelper.Instance.SetNativeISpatialCoordinateSystemPtr(_spatialCoordinateSystemPtr);
+#endif
+
+#endif
 
         _resolution = CameraStreamHelper.Instance.GetLowestResolution();
         float frameRate = CameraStreamHelper.Instance.GetHighestFrameRate(_resolution);
@@ -94,12 +137,12 @@ public class VideoPanelApp : MonoBehaviour
         cameraParams.cameraResolutionWidth = _resolution.width;
         cameraParams.frameRate = Mathf.RoundToInt(frameRate);
         cameraParams.pixelFormat = CapturePixelFormat.BGRA32;
-        cameraParams.rotateImage180Degrees = true; //If your image is upside down, remove this line.
+        cameraParams.rotateImage180Degrees = false;
         cameraParams.enableHolograms = false;
 
         Debug.Log("Configuring camera: " + _resolution.width + "x" + _resolution.height + " | " + cameraParams.pixelFormat);
+        Enqueue(() => SetText("Configuring camera: " + _resolution.width + "x" + _resolution.height + " | " + cameraParams.pixelFormat));
 
-        Enqueue(() => _videoPanelUI.SetResolution(_resolution.width, _resolution.height));
         videoCapture.StartVideoModeAsync(cameraParams, OnVideoModeStarted);
     }
 
@@ -108,10 +151,12 @@ public class VideoPanelApp : MonoBehaviour
         if (result.success == false)
         {
             Debug.LogWarning("Could not start video mode.");
+            Enqueue(() => SetText("Could not start video mode."));
             return;
         }
 
         Debug.Log("Video capture started.");
+        Enqueue(() => SetText("Video capture started."));
     }
 
     void OnFrameSampleAcquired(VideoCaptureSample sample)
@@ -120,9 +165,20 @@ public class VideoPanelApp : MonoBehaviour
         {
             if (_mainThreadActions.Count > 2)
             {
+                sample.Dispose();
                 return;
             }
         }
+
+        // Texture generation is done at this time because certain device and setting combinations (NV12 format for Hololens2)
+        // may deliver images of a different size than the resolution set in the camera parameters in advance.
+        if (_latestImageBytes == null || _latestImageBytes.Length < sample.dataLength)
+        {
+            int frameWidth = sample.FrameWidth;
+            int frameHeight = sample.FrameHeight;
+            Enqueue(() => _videoPanelUI.SetResolution(frameWidth, frameHeight));
+        }
+
         //When copying the bytes out of the buffer, you must supply a byte[] that is appropriately sized.
         //You can reuse this byte[] until you need to resize it (for whatever reason).
         if (_latestImageBytes == null || _latestImageBytes.Length < sample.dataLength)
@@ -130,25 +186,58 @@ public class VideoPanelApp : MonoBehaviour
             _latestImageBytes = new byte[sample.dataLength];
         }
         sample.CopyRawImageDataIntoBuffer(_latestImageBytes);
-        
+
+
         //If you need to get the cameraToWorld matrix for purposes of compositing you can do it like this
-        float[] cameraToWorldMatrix;
-        if (sample.TryGetCameraToWorldMatrix(out cameraToWorldMatrix) == false)
+        float[] cameraToWorldMatrixAsFloat;
+        if (sample.TryGetCameraToWorldMatrix(out cameraToWorldMatrixAsFloat) == false)
         {
-            return;
+            //return;
         }
 
         //If you need to get the projection matrix for purposes of compositing you can do it like this
-        float[] projectionMatrix;
-        if (sample.TryGetProjectionMatrix(out projectionMatrix) == false)
+        float[] projectionMatrixAsFloat;
+        if (sample.TryGetProjectionMatrix(out projectionMatrixAsFloat) == false)
         {
-            return;
+            //return;
         }
 
+        // Right now we pass things across the pipe as a float array then convert them back into UnityEngine.Matrix using a utility method
+        Matrix4x4 cameraToWorldMatrix = LocatableCameraUtils.ConvertFloatArrayToMatrix4x4(cameraToWorldMatrixAsFloat);
+        Matrix4x4 projectionMatrix = LocatableCameraUtils.ConvertFloatArrayToMatrix4x4(projectionMatrixAsFloat);
+
+        Enqueue(() =>
+        {
+            _videoPanelUI.SetBytes(_latestImageBytes);
+
+#if XR_PLUGIN_WINDOWSMR || XR_PLUGIN_OPENXR
+            // It appears that the Legacy built-in XR environment automatically applies the Holelens Head Pose to Unity camera transforms,
+            // but not to the new XR system (XR plugin management) environment.
+            // Here the cameraToWorldMatrix is applied to the camera transform as an alternative to Head Pose,
+            // so the position of the displayed video panel is significantly misaligned. If you want to apply a more accurate Head Pose, use MRTK.
+
+            Camera unityCamera = Camera.main;
+            Matrix4x4 invertZScaleMatrix = Matrix4x4.Scale(new Vector3(1, 1, -1));
+            Matrix4x4 localToWorldMatrix = cameraToWorldMatrix * invertZScaleMatrix;
+            unityCamera.transform.localPosition = localToWorldMatrix.GetColumn(3);
+            unityCamera.transform.localRotation = Quaternion.LookRotation(localToWorldMatrix.GetColumn(2), localToWorldMatrix.GetColumn(1));
+#endif
+
+            Debug.Log("Got frame: " + sample.FrameWidth + "x" + sample.FrameHeight + " | " + sample.pixelFormat + " | " + sample.dataLength);
+            if (_displayText != null)
+            {
+                _displayText.text = "Got frame: " + sample.FrameWidth + "x" + sample.FrameHeight + " | " + sample.pixelFormat + " | " + sample.dataLength;
+            }
+        });
+
         sample.Dispose();
+    }
 
-        //Debug.Log("Got frame: " + sample.FrameWidth + "x" + sample.FrameHeight + " | " + sample.pixelFormat);
-
-        Enqueue(() => _videoPanelUI.SetBytes(_latestImageBytes));
+    private void SetText(string text)
+    {
+        if (_displayText != null)
+        {
+            _displayText.text += text + "\n";
+        }
     }
 }
