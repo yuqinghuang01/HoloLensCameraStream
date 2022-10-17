@@ -73,7 +73,7 @@ public class VideoPanelApp : MonoBehaviour
         //CameraStreamManager.Instance.GetVideoCaptureAsync(v => videoCapture = v);
 
         _videoPanelUI = GameObject.FindObjectOfType<VideoPanel>();
-        _videoPanelUI.rawImage.transform.localScale = new Vector3(1, -1, 1);
+        _videoPanelUI.meshRenderer.transform.localScale = new Vector3(1, -1, 1);
     }
 
     private void Update()
@@ -140,8 +140,8 @@ public class VideoPanelApp : MonoBehaviour
         cameraParams.rotateImage180Degrees = false;
         cameraParams.enableHolograms = false;
 
-        Debug.Log("Configuring camera: " + _resolution.width + "x" + _resolution.height + " | " + cameraParams.pixelFormat);
-        Enqueue(() => SetText("Configuring camera: " + _resolution.width + "x" + _resolution.height + " | " + cameraParams.pixelFormat));
+        Debug.Log("Configuring camera: " + _resolution.width + "x" + _resolution.height + "x" + cameraParams.frameRate + " | " + cameraParams.pixelFormat);
+        Enqueue(() => SetText("Configuring camera: " + _resolution.width + "x" + _resolution.height + "x" + cameraParams.frameRate + " | " + cameraParams.pixelFormat));
 
         videoCapture.StartVideoModeAsync(cameraParams, OnVideoModeStarted);
     }

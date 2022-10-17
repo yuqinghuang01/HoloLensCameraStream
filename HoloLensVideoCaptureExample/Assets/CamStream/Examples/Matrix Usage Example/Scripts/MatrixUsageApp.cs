@@ -187,6 +187,7 @@ public class MatrixUsageApp : MonoBehaviour
             _videoPanelUIRenderer.sharedMaterial.SetTexture("_MainTex", _videoTexture);
             _videoPanelUIRenderer.sharedMaterial.SetMatrix("_WorldToCameraMatrix", cameraToWorldMatrix.inverse);
             _videoPanelUIRenderer.sharedMaterial.SetMatrix("_CameraProjectionMatrix", projectionMatrix);
+            _videoPanelUIRenderer.sharedMaterial.SetInt("_FlipY", 1);
             _videoPanelUIRenderer.sharedMaterial.SetFloat("_VignetteScale", 0.0f);
 
 

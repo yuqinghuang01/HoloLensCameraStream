@@ -1,4 +1,4 @@
-Shader "AR/HolographicImageBlend"
+Shader "AR/HolographicImageBlendGrayscale"
 {
     Properties
     {
@@ -85,7 +85,8 @@ Shader "AR/HolographicImageBlend"
                 // Inverts the Y axis of the texture's UV.
                 if (_FlipY > 0) uv.y = 1.0 - uv.y;
 
-                fixed4 finalColor = tex2D(_MainTex, uv);
+                float texcol = tex2D(_MainTex, uv).a;
+                fixed4 finalColor = fixed4(texcol, texcol, texcol, 1.0f);
  
                 // Finally add a circular vignette effect starting from the center
                 // of the image.

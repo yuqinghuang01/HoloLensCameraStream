@@ -208,6 +208,7 @@ public class ProjectionExample : MonoBehaviour
                 _pictureRenderer.sharedMaterial.SetTexture("_MainTex", _pictureTexture);
                 _pictureRenderer.sharedMaterial.SetMatrix("_WorldToCameraMatrix", camera2WorldMatrix.inverse);
                 _pictureRenderer.sharedMaterial.SetMatrix("_CameraProjectionMatrix", projectionMatrix);
+                _pictureRenderer.sharedMaterial.SetInt("_FlipY", 1);
                 _pictureRenderer.sharedMaterial.SetFloat("_VignetteScale", 0f);
 
                 Vector3 inverseNormal = -camera2WorldMatrix.GetColumn(2);
