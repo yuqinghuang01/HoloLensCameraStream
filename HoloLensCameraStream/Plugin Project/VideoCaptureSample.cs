@@ -102,21 +102,6 @@ namespace HoloLensCameraStream
             pixelFormat = ConvertBitmapPixelFormatToCapturePixelFormat(bitmap.BitmapPixelFormat);
             FrameWidth = bitmap.PixelWidth;
             FrameHeight = bitmap.PixelHeight;
-
-            // from https://github.com/qian256/HoloLensARToolKit/blob/bef36a89f191ab7d389d977c46639376069bbed6/HoloLensARToolKit/Assets/ARToolKitUWP/Scripts/ARUWPVideo.cs#L372
-            if (pixelFormat == CapturePixelFormat.NV12)
-            {
-                if (FrameWidth == 500 || FrameWidth == 760 || FrameWidth == 1128 || FrameWidth == 1504 || FrameWidth == 1952)
-                {
-                    // if bitmap.PixelWidth is not aligned with 64, then pad to 64
-                    // on HoloLens 2, it is a must
-                    if (FrameWidth % 64 != 0)
-                    {
-                        int paddedFrameWidth = ((FrameWidth >> 6) + 1) << 6;
-                        FrameWidth = paddedFrameWidth;
-                    }
-                }
-            }
         }
 
         /// <summary>

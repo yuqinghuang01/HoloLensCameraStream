@@ -122,6 +122,8 @@ public class MatrixUsageApp : MonoBehaviour
         cameraParams.rotateImage180Degrees = false;
         cameraParams.enableHolograms = false;
 
+        UnityEngine.WSA.Application.InvokeOnAppThread(() => { _videoTexture = new Texture2D(_resolution.width, _resolution.height, TextureFormat.BGRA32, false); }, false);
+
         videoCapture.StartVideoModeAsync(cameraParams, OnVideoModeStarted);
     }
 
@@ -138,15 +140,6 @@ public class MatrixUsageApp : MonoBehaviour
 
     void OnFrameSampleAcquired(VideoCaptureSample sample)
     {
-        // Texture generation is done at this time because certain device and setting combinations (NV12 format for Hololens2)
-        // may deliver images of a different size than the resolution set in the camera parameters in advance.
-        if (_latestImageBytes == null || _latestImageBytes.Length < sample.dataLength)
-        {
-            int frameWidth = sample.FrameWidth;
-            int frameHeight = sample.FrameHeight;
-            UnityEngine.WSA.Application.InvokeOnAppThread(() => { _videoTexture = new Texture2D(frameWidth, frameHeight, TextureFormat.BGRA32, false); }, false);
-        }
-
         //When copying the bytes out of the buffer, you must supply a byte[] that is appropriately sized.
         //You can reuse this byte[] until you need to resize it (for whatever reason).
         if (_latestImageBytes == null || _latestImageBytes.Length < sample.dataLength)

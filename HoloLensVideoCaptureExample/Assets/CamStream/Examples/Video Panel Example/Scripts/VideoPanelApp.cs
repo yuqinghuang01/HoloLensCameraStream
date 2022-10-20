@@ -143,6 +143,7 @@ public class VideoPanelApp : MonoBehaviour
         Debug.Log("Configuring camera: " + _resolution.width + "x" + _resolution.height + "x" + cameraParams.frameRate + " | " + cameraParams.pixelFormat);
         Enqueue(() => SetText("Configuring camera: " + _resolution.width + "x" + _resolution.height + "x" + cameraParams.frameRate + " | " + cameraParams.pixelFormat));
 
+        Enqueue(() => _videoPanelUI.SetResolution(_resolution.width, _resolution.height));
         videoCapture.StartVideoModeAsync(cameraParams, OnVideoModeStarted);
     }
 
@@ -168,15 +169,6 @@ public class VideoPanelApp : MonoBehaviour
                 sample.Dispose();
                 return;
             }
-        }
-
-        // Texture generation is done at this time because certain device and setting combinations (NV12 format for Hololens2)
-        // may deliver images of a different size than the resolution set in the camera parameters in advance.
-        if (_latestImageBytes == null || _latestImageBytes.Length < sample.dataLength)
-        {
-            int frameWidth = sample.FrameWidth;
-            int frameHeight = sample.FrameHeight;
-            Enqueue(() => _videoPanelUI.SetResolution(frameWidth, frameHeight));
         }
 
         //When copying the bytes out of the buffer, you must supply a byte[] that is appropriately sized.
