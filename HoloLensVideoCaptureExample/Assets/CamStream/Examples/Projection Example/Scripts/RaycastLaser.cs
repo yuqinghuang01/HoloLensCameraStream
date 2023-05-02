@@ -39,4 +39,17 @@ public class RaycastLaser : MonoBehaviour
         lr.SetPosition(0, from);
         lr.SetPosition(1, to);
     }
+
+    public void drawLineBetween(Vector3 from, Vector3 to, Material mat = null)
+    {
+        LineRenderer lr = new GameObject().AddComponent<LineRenderer>();
+        lr.transform.parent = transform;
+        lr.widthMultiplier = _lineWidthMultiplier;
+
+        // Set Material
+        lr.material = mat == null ? _laserMaterial : mat;
+
+        lr.SetPosition(0, from);
+        lr.SetPosition(1, to);
+    }
 }

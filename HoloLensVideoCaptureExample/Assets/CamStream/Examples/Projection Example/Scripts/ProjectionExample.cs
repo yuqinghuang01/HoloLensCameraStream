@@ -35,6 +35,8 @@ public class ProjectionExample : MonoBehaviour
     public Material _botRightMaterial;
     public Material _centerMaterial;
 
+    public float _lineWidthMultiplier = 0.01f;
+
     private HoloLensCameraStream.Resolution _resolution;
     private VideoCapture _videoCapture;
 
@@ -58,12 +60,18 @@ public class ProjectionExample : MonoBehaviour
 
     private RaycastLaser _laser;
 
+    LineRenderer lr1;
+    LineRenderer lr2;
+    LineRenderer lr3;
+    LineRenderer lr4;
+
     // This struct store frame related data
     private class SampleStruct
     {
         public float[] camera2WorldMatrix, projectionMatrix;
         public byte[] data;
     }
+
 
     void Awake()
     {
@@ -109,8 +117,19 @@ public class ProjectionExample : MonoBehaviour
         _pictureRenderer = _picture.GetComponent<Renderer>() as Renderer;
         _pictureRenderer.material = new Material(Shader.Find("AR/HolographicImageBlend"));
 
-        // Set the laser
-        _laser = GetComponent<RaycastLaser>();
+        // Set the lines for bounding box
+        lr1 = new GameObject().AddComponent<LineRenderer>();
+        lr2 = new GameObject().AddComponent<LineRenderer>();
+        lr3 = new GameObject().AddComponent<LineRenderer>();
+        lr4 = new GameObject().AddComponent<LineRenderer>();
+        lr1.widthMultiplier = _lineWidthMultiplier;
+        lr2.widthMultiplier = _lineWidthMultiplier;
+        lr3.widthMultiplier = _lineWidthMultiplier;
+        lr4.widthMultiplier = _lineWidthMultiplier;
+        lr1.material = _centerMaterial;
+        lr2.material = _centerMaterial;
+        lr3.material = _centerMaterial;
+        lr4.material = _centerMaterial;
     }
 
     private void OnDestroy()
@@ -217,25 +236,32 @@ public class ProjectionExample : MonoBehaviour
 
                 _picture.transform.position = imagePosition;
                 _picture.transform.rotation = Quaternion.LookRotation(inverseNormal, camera2WorldMatrix.GetColumn(1));
-            }
-            else
-            {
-                if (_laser.transform.childCount == 0)
-                {
-                    // Get the ray directions
-                    Vector3 imageCenterDirection = LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, new Vector2(_resolution.width / 2, _resolution.height / 2));
-                    Vector3 imageTopLeftDirection = LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, new Vector2(0, 0));
-                    Vector3 imageTopRightDirection = LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, new Vector2(_resolution.width, 0));
-                    Vector3 imageBotLeftDirection = LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, new Vector2(0, _resolution.height));
-                    Vector3 imageBotRightDirection = LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, new Vector2(_resolution.width, _resolution.height));
 
-                    // Paint the rays on the 3d world
-                    _laser.shootLaserFrom(camera2WorldMatrix.GetColumn(3), imageCenterDirection, 10f, _centerMaterial);
-                    _laser.shootLaserFrom(camera2WorldMatrix.GetColumn(3), imageTopLeftDirection, 10f, _topLeftMaterial);
-                    _laser.shootLaserFrom(camera2WorldMatrix.GetColumn(3), imageTopRightDirection, 10f, _topRightMaterial);
-                    _laser.shootLaserFrom(camera2WorldMatrix.GetColumn(3), imageBotLeftDirection, 10f, _botLeftMaterial);
-                    _laser.shootLaserFrom(camera2WorldMatrix.GetColumn(3), imageBotRightDirection, 10f, _botRightMaterial);
-                }
+                // define box corners coordinates
+                Vector2 topLeftImageCoord = new Vector2(_resolution.width / 4, _resolution.height / 4);
+                Vector2 topRightImageCoord = new Vector2(3 * _resolution.width / 4, _resolution.height / 4);
+                Vector2 botLeftImageCoord = new Vector2(_resolution.width / 4, 3 * _resolution.height / 4);
+                Vector2 botRightImageCoord = new Vector2(3 * _resolution.width / 4, 3 * _resolution.height / 4);
+
+                // get depth data
+                float depth = 0.8f;
+
+                // Get corner coordinates in world coordinate system
+                Vector3 from = camera2WorldMatrix.GetColumn(3);
+                Vector3 topLeftWorldCoord = from + depth * LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, topLeftImageCoord);
+                Vector3 topRightWorldCoord = from + depth * LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, topRightImageCoord);
+                Vector3 botLeftWorldCoord = from + depth * LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, botLeftImageCoord);
+                Vector3 botRightWorldCoord = from + depth * LocatableCameraUtils.PixelCoordToWorldCoord(camera2WorldMatrix, projectionMatrix, _resolution, botRightImageCoord);
+
+                // update line positions of bounding box
+                lr1.SetPosition(0, topLeftWorldCoord);
+                lr1.SetPosition(1, topRightWorldCoord);
+                lr2.SetPosition(0, topRightWorldCoord);
+                lr2.SetPosition(1, botRightWorldCoord);
+                lr3.SetPosition(0, botRightWorldCoord);
+                lr3.SetPosition(1, botLeftWorldCoord);
+                lr4.SetPosition(0, botLeftWorldCoord);
+                lr4.SetPosition(1, topLeftWorldCoord);
             }
 
 #if XR_PLUGIN_WINDOWSMR || XR_PLUGIN_OPENXR
